@@ -4,9 +4,9 @@
   "private": true,
   "dependencies": {
     "bootstrap": "^3.4.1",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0",
-    "react-scripts": "1.0.17"
+    "react": "^16.8.0",
+    "react-dom": "^16.8.0",
+    "react-scripts": "2.1.8"
   },
   "scripts": {
     "start": "react-scripts start",
