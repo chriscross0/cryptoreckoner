@@ -7,7 +7,6 @@ import Total from './Components/Total';
 import AddForm from './Components/AddForm';
 import Footer from './Components/Footer';
 
-import update from 'immutability-helper';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 class App extends Component {
@@ -20,7 +19,6 @@ class App extends Component {
 				{ code : 'BTC', price : 0, low : 0, high : 0, added : false },
 				{ code : 'ETH', price : 0, low : 0, high : 0, added : false },
 				{ code : 'XRP', price : 0, low : 0, high : 0, added : false },
-				{ code : 'BCC', price : 0, low : 0, high : 0, added : false },
 				{ code : 'LTC', price : 0, low : 0, high : 0, added : false },
 				{ code : 'ADA', price : 0, low : 0, high : 0, added : false },
 				{ code : 'DASH', price : 0, low : 0, high : 0, added : false },
@@ -65,15 +63,17 @@ class App extends Component {
 
 	setHolding(holding){
 		this.setState((state) => (
-			update(state, {$merge: {holdings : state.holdings.map(h => {
-				if(h.code === holding.code){
-					return {
-						...h,
-						amount : holding.amount
+			{
+				holdings : state.holdings.map(h => {
+					if(h.code === holding.code){
+						return {
+							...h,
+							amount : holding.amount
+						}
 					}
-				}
-				return h;
-			}) }})
+					return h;
+				})
+			}
 		), () => {
 			this.recalculate();
 			this.saveHoldings();
@@ -82,9 +82,9 @@ class App extends Component {
 
 	addHolding(holding){
 		this.setState((state) => (
-			update(state, {
-				holdings : {$push : [holding] },
-				prices : {$merge : state.prices.map(p => {
+			{
+				holdings : state.holdings.concat(holding),
+				prices : state.prices.map(p => {
 					if(p.code === holding.code){
 						return {
 							...p,
@@ -92,8 +92,8 @@ class App extends Component {
 						}
 					}
 					return p;
-				})}
-			})
+				})
+			}
 		), () => {
 			this.recalculate();
 			this.saveHoldings();
@@ -101,13 +101,12 @@ class App extends Component {
 	}
 
 	removeHolding(code){
-		let index = this.state.holdings.findIndex(obj => (
-			obj.code === code
-		));
 		this.setState((state) => (
-			update(state, {
-				holdings : {$splice: [[index, 1]]},
-				prices : {$merge : state.prices.map(p => {
+			{
+				holdings : state.holdings.filter(obj => {
+					return obj.code !== code
+				}),
+				prices : state.prices.map(p => {
 					if(p.code === code){
 						return {
 							...p,
@@ -115,8 +114,8 @@ class App extends Component {
 						}
 					}
 					return p;
-				})}
-			})
+				})
+			}
 		), () => {
 			this.recalculate();
 			this.saveHoldings();
@@ -125,18 +124,20 @@ class App extends Component {
 
 	updatePrices(){
 
-		this.setState((state) => (
-			update(state, {
-				$merge : {isLoadingPrices : true}
-			})
-		));
+		this.setState({
+			isLoadingPrices : true
+		});
 
-		const apiUrl = 'https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20json%20where%20url%20%3D%20%27https%3A%2F%2Fbittrex.com%2Fapi%2Fv1.1%2Fpublic%2Fgetmarketsummaries%27&format=json';
+		// switched to local prices source after yahoo shut down the api
+		//const apiUrl = 'https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20json%20where%20url%20%3D%20%27https%3A%2F%2Fbittrex.com%2Fapi%2Fv1.1%2Fpublic%2Fgetmarketsummaries%27&format=json';
+		const apiUrl = '/prices.json';
 
 		fetch(apiUrl).then((response) => {
 			if(response.ok) {
 				response.json().then((result) => {
-					const marketList = result.query.results.json.result;
+
+					//const marketList = result.query.results.json.result;
+					const marketList = result.result;
 
 					const newPrices = [];
 
@@ -146,33 +147,22 @@ class App extends Component {
 							obj.MarketName === 'USDT-' + priceObj.code
 						));
 
-						newPrices.push({
-							...priceObj,
-							price : (marketObj.Last*1).toFixed(2),
-							high : (marketObj.High*1).toFixed(2),
-							low : (marketObj.Low*1).toFixed(2)
-						});
+						if(marketObj){
+							newPrices.push({
+								...priceObj,
+								price : (marketObj.Last*1).toFixed(2),
+								high : (marketObj.High*1).toFixed(2),
+								low : (marketObj.Low*1).toFixed(2)
+							});
+						} else {
+							console.log("Market not found:", priceObj);
+						}
 					});
 
-					/* alternate method using $set
-					this.setState((state) => (
-						update(state, {
-							prices : {$set : newPrices},
-							isLoadingPrices : {$set : false}
-						})
-					), () => {
-						this.recalculate();
-					});
-					*/
-
-					this.setState((state) => (
-						update(state, {
-							$merge : {
-								prices : newPrices,
-								isLoadingPrices : false
-							}
-						})
-					), () => {
+					this.setState({
+						prices : newPrices,
+						isLoadingPrices : false
+					}, () => {
 						this.recalculate();
 					});
 
@@ -187,23 +177,21 @@ class App extends Component {
 		if(holdingsJson !== null){
 			let decodedHoldings = JSON.parse(holdingsJson);
 			this.setState((state) => (
-				update(state, {
-					$merge : {
-						holdings : decodedHoldings,
-						prices : state.prices.map((priceObj) => {
-							let added = decodedHoldings.find((h) => (
-								h.code === priceObj.code
-							));
-							if(added){
-								return {
-									...priceObj,
-									added : true
-								}
+				{
+					holdings : decodedHoldings,
+					prices : state.prices.map((priceObj) => {
+						let added = decodedHoldings.find((h) => (
+							h.code === priceObj.code
+						));
+						if(added){
+							return {
+								...priceObj,
+								added : true
 							}
-							return priceObj;
-						})
-					}
-				})
+						}
+						return priceObj;
+					})
+				}
 			), this.recalculate);
 		}
 	}
