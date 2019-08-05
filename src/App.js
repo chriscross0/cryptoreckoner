@@ -6,6 +6,7 @@ import PriceList from './Components/PriceList';
 import Total from './Components/Total';
 import AddForm from './Components/AddForm';
 import Footer from './Components/Footer';
+import Header from './Components/Header';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -203,16 +204,10 @@ class App extends Component {
 		return (
 		  <div className="App">
 			<header className="App-header">
-			  <div className="container">
-				<div className="row">
-					<div className="col-xs-12">
-						<h1 className="App-title">CryptoReckoner</h1>
-						<p>Add your crypto currency holdings and find out the total amount converted to USD</p>
-					</div>
+	      <div className="container">
+					<Header />
 				</div>
-			  </div>
 			</header>
-
 
 			  <section className="">
 				  <div className="container">
